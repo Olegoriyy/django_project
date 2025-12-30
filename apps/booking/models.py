@@ -1,30 +1,31 @@
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 
 
-# Create your models here.
 class Room(models.Model):
-    room_number = models.IntegerField(unique=True)
-    description = models.TextField(blank=True)
-    price_per_night = models.DecimalField(max_digits=8, decimal_places=2)
-    time_create = models.DateField(auto_now_add=True)
-    time_update = models.DateField(auto_now=True)
+    title = models.CharField(blank=False, max_length=256)
+    price_per_night = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f'Room # {self.room_number}, Price: {self.price_per_night} /day'
-
-    class Meta:
-        ordering = ['price_per_night']
-        indexes = [models.Index(fields=['price_per_night'])]
+        return f'Title: {self.title}, Price: {self.price_per_night}'
 
 
 class Booking(models.Model):
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='bookings')
-    date_start = models.DateField()
-    date_end = models.DateField()
+    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    start_date = models.DateField()
+    end_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f'Booking #{self.id} — Room {self.room.id} ({self.date_start} → {self.date_end})'
+    def clean(self):
+        if self.start_date >= self.end_date:
+            raise ValidationError({
+                'end_date': 'Дата выезда должна быть позже даты заезда.'
+            })
 
     class Meta:
-        ordering = ['date_start']
+        ordering = ['start_date']

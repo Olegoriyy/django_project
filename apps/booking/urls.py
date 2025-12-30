@@ -1,18 +1,14 @@
 from django.urls import path
 
-from .views import *
+from .views import BookingApiView, HealthCheck, RoomApiView
 
 urlpatterns = [
-    # rooms
-    path('rooms/create', RoomCreateView.as_view(), name='room-create'),
-    path('rooms/list', RoomListView.as_view(), name='room-list'),
-    path('rooms/delete/<int:room_id>', RoomDeleteView.as_view(), name='room-delete'),
-    # books
-    path('bookings/create', BookingCreateView.as_view(), name='booking-create'),
-    path('bookings/list', BookingListView.as_view(), name='booking-list'),
-    path(
-        'bookings/delete/<int:booking_id>',
-        BookingDeleteView.as_view(),
-        name='booking-delete',
-    ),
+    # Rooms endpoints
+    path('rooms/api/', RoomApiView.as_view()),
+    path('rooms/api/<int:pk>/', RoomApiView.as_view()),
+    # Bookings endpoints
+    path('booking/api/', BookingApiView.as_view()),
+    path('booking/api/<int:pk>/', BookingApiView.as_view()),
+    # Health check
+    path('health_check/', HealthCheck.as_view()),
 ]

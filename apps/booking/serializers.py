@@ -4,47 +4,42 @@ from .models import Booking, Room
 
 
 class RoomSerializer(serializers.ModelSerializer):
-    room_id = serializers.IntegerField(source='id', read_only=True)
-
     class Meta:
         model = Room
-        fields = (
-            'room_id',
-            'room_number',
-            'description',
-            'price_per_night',
-            'time_create',
-        )
-        read_only_fields = ('room_id', 'time_create')
+        fields = '__all__'
+        read_only_fields = ['is_active', 'created_at', 'id']
+        extra_kwargs = {
+            'title': {'allow_blank': False},
+            'price_per_night': {'max_value': 10000},
+        }
 
 
-class BookingCreateSerializer(serializers.ModelSerializer):
-    room_id = serializers.PrimaryKeyRelatedField(
-        queryset=Room.objects.all(),
-        source='room',  # важно: связка с полем модели "room"
-        write_only=True,
-    )
-
+class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = ('room_id', 'date_start', 'date_end')
+        fields = '__all__'
+        read_only_fields = ['created_at']
 
     def validate(self, attrs):
-        """
-        Общая валидация: проверяем, что date_start <= date_end.
-        """
-        date_start = attrs.get('date_start')
-        date_end = attrs.get('date_end')
+        pk = attrs.get('pk') or getattr(self.instance, 'pk', None)
+        room = attrs.get('room') or getattr(self.instance, 'room', None)
+        start = attrs.get('start_date') or getattr(self.instance, 'start_date', None)
+        end = attrs.get('end_date') or getattr(self.instance, 'end_date', None)
+        if start >= end:
+            raise serializers.ValidationError({
+                'end_date': 'Дата выезда должна быть позже даты заезда.'
+            })
+        # Проверяем бронирования на пересечения
+        qs = Booking.objects.filter(
+            room=room,
+            start_date__lt=end,
+            end_date__gt=start,
+        )
+        # при обновлении бронирования, исключаем саму себя
+        if pk:
+            qs = qs.exclude(pk=pk)
 
-        if date_start and date_end and date_start > date_end:
-            raise serializers.ValidationError('date_start Должна быть <= date_end')
+        if qs.exists():
+            raise serializers.ValidationError('Номер уже забронирован на эти даты.')
 
         return attrs
-
-
-class BookingListSerializer(serializers.ModelSerializer):
-    booking_id = serializers.IntegerField(source='id', read_only=True)
-
-    class Meta:
-        model = Booking
-        fields = ('booking_id', 'date_start', 'date_end')
